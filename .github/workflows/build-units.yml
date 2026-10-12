@@ -1,0 +1,52 @@
+name: Build drumlogue units
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+  pull_request: {}
+
+
+jobs:
+  build-units:
+    name: Build units
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Check out Felucca (the submodule, at its pinned tag)
+        run: git submodule update --init --depth 1
+
+      - name: Install containers tools
+        uses: gbraad-actions/setup-container-tools@v1
+
+      # build.sh runs the SDK's own Makefile from this directory, mounted at /workspace, and the
+      # container image is the cross toolchain rather than the SDK. The path below is the default
+      # build.sh uses, so the build needs no environment of its own.
+      - name: Check out the logue SDK
+        run: |
+          mkdir -p $HOME/Projects/logue
+          git clone --depth 1 https://github.com/korginc/logue-sdk.git $HOME/Projects/logue/logue-sdk
+
+      # Only on a runner: /workspace is that platform directory, and inside the image it is also the
+      # build user's HOME, where the SDK's own environment script keeps its session
+      # (${HOME}/.drumlogue.env_backup). A fresh clone is mode 755 and the container's user is not the
+      # runner's uid - the image remaps onto the owner of /workspace, but under rootless podman the
+      # owner is the uid that invoked podman, which the container sees as uid 0, so the remap is
+      # skipped. The environment then aborts before it puts the cross toolchain on PATH, and the
+      # build reads as "Could not create env. backup directory" plus "make: gcc: Command not found".
+      - name: Make the platform directory writable by the container
+        run: chmod 777 $HOME/Projects/logue/logue-sdk/platform
+
+      - name: Build the units
+        run: ./build.sh
+
+      - name: Upload Artifact - units
+        uses: actions/upload-artifact@v4
+        with:
+          name: fluyt-drumlogue-units
+          path: bin/
+          retention-days: 7
