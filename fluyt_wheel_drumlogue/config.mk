@@ -46,3 +46,8 @@ UDEFS += -DFLUYT_UNIT_NAME=\"FLUYT\ WHEEL\"
 UDEFS += -DFLUYT_UNIT_ID=0x464C5905U
 UDEFS += -DFLUYT_UNIT_PRESETS=5
 UDEFS += -DFLUYT_GATE_NOTE=60
+# what this engine has of itself: it reads m->cutoff / m->shape (see UNITS[] in the
+# generator). tools/check_rows.c holds the panel to these two - a filter row or an LFO
+# filter amount where there is no filter is a slot spent on nothing.
+UDEFS += -DFLUYT_ENGINE_CUTOFF=0
+UDEFS += -DFLUYT_ENGINE_SHAPE=0

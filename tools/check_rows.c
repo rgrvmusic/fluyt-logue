@@ -19,6 +19,12 @@
  *     as the row's maximum - so a row below zero here is a panel whose lower half shows its top
  *     ("+98%", "+24st"): the bug this file is here to catch.
  *
+ *   - the panel against this engine's own parts (FLUYT_ENGINE_CUTOFF / FLUYT_ENGINE_SHAPE, which
+ *     config.mk carries and which say what the engine's code reads): no filter row and no LFO filter
+ *     amount on a unit whose engine has no filter, no LFO shape amount where it is not shaped, and
+ *     none of the rows Fluyt leaves off on purpose - the FM-1's own track (level, pan, mute, glide)
+ *     and the envelope's non-filter destinations.
+ *
  * It also *moves* every row: each one is set from the control thread the way the device sets it, at
  * its lowest, its default and its highest value, and the parameter Felucca's engine holds is checked
  * against the descriptor afterwards, as is the text the device is shown. And it prints the panel the
@@ -32,9 +38,17 @@
  *      -DFLUYT_ENGINE_C='"eng_analog.c"' -DFLUYT_ENGINE_SYM=ENG_ANALOG \
  *      -DFLUYT_ENGINE_INDEX=0 -DFLUYT_ROWS='"fluyt_analog_drumlogue/rows.def"' \
  *      -DFLUYT_UNIT_NAME='"FLUYT ANALOG"' -DFLUYT_UNIT_ID=1 -DFLUYT_UNIT_PRESETS=12
+ *      -DFLUYT_ENGINE_CUTOFF=1 -DFLUYT_ENGINE_SHAPE=1
  *   build/check_rows
  * (those are the unit's own UDEFS: hostcheck.sh reads them out of its config.mk, so there is only
  * ever one copy of them.) */
+
+#ifndef FLUYT_ENGINE_CUTOFF
+#error "FLUYT_ENGINE_CUTOFF must say whether this engine reads m->cutoff (see a unit's config.mk)"
+#endif
+#ifndef FLUYT_ENGINE_SHAPE
+#error "FLUYT_ENGINE_SHAPE must say whether this engine reads m->shape (see a unit's config.mk)"
+#endif
 
 #include <stdio.h>
 #include <string.h>
@@ -60,6 +74,33 @@ static const struct checkrow ROWS[] = {
 #undef FLUYT_ROW
 };
 #define NROWS (sizeof(ROWS) / sizeof(ROWS[0]))
+
+/* The rows that are only a row where the engine has the part behind them, and the ones Fluyt leaves
+ * off the panel altogether.
+ *
+ * 'C' and 'S' are the engine's own code: the row modulates a cutoff (voice.c's m.cutoff) or a shape
+ * (m.shape), and an engine that never reads either has nothing behind the row, so a panel that shows
+ * it is a slot spent on a knob that moves nothing. That is what config.mk's FLUYT_ENGINE_CUTOFF /
+ * FLUYT_ENGINE_SHAPE say (tools/gen_rows.c's UNITS[] read them out of the engine's source), and a
+ * row expected here against the flag is the panel and the engine having come apart.
+ *
+ * 0 is the FM-1's own track, which a drumlogue unit does not put on its panel: level and pan are the
+ * part the unit renders into (the device's own volume and pan), mute is the sequencer's, and glide,
+ * the envelope's non-filter destinations and the LFO's phase and fade lost their slot to the LFO's
+ * four destinations - which is what the panel says it is, so a row from this list turning up on a
+ * panel is the panel drifting. */
+struct flagrow {
+  const char *name;                /* the parameter, as the walk in tools/gen_rows.c writes it */
+  uint8_t id;
+  uint8_t flag;                    /* 0: never on a Fluyt panel, 'C': m->cutoff, 'S': m->shape */
+};
+static const struct flagrow FLAGROW[] = {
+    {"P_ED_FLT", P_ED_FLT, 'C'}, {"P_LD_FLT", P_LD_FLT, 'C'}, {"P_LD_SHP", P_LD_SHP, 'S'},
+    {"P_LEVEL", P_LEVEL, 0}, {"P_PAN", P_PAN, 0}, {"P_MUTE", P_MUTE, 0}, {"P_GLIDE", P_GLIDE, 0},
+    {"P_ED_PIT", P_ED_PIT, 0}, {"P_ED_SHP", P_ED_SHP, 0}, {"P_LPHASE", P_LPHASE, 0},
+    {"P_LFADE", P_LFADE, 0},
+};
+#define NFLAGROW (sizeof(FLAGROW) / sizeof(FLAGROW[0]))
 
 /* Felucca's own formatting of a value, for holding the unit's answer to it */
 static void felucca_str(const param_desc_t *d, int32_t value, char *out, size_t n)
@@ -133,6 +174,33 @@ int main(void)
       fluyt_row_param[3] != P_REL) {
     printf("FAIL: rows 1-4 are not ATK, DEC, SUS, REL\n");
     bad++;
+  }
+
+  /* the panel against the engine's own parts, and against what Fluyt leaves off (FLAGROW) */
+  for (i = 0; i < NFLAGROW; i++) {
+    const char *why;
+    uint32_t on = 0;
+    int want;
+    for (j = 0; j < NROWS; j++)
+      if (fluyt_row_param[j] == FLAGROW[i].id)
+        on = 1;
+    if (FLAGROW[i].flag == 'C') {
+      want = FLUYT_ENGINE_CUTOFF ? 1 : 0;
+      why = want ? "this engine renders a filter, so the row has to be here"
+                 : "this engine renders no filter (FLUYT_ENGINE_CUTOFF is 0)";
+    } else if (FLAGROW[i].flag == 'S') {
+      want = FLUYT_ENGINE_SHAPE ? 1 : 0;
+      why = want ? "this engine is shaped, so the row has to be here"
+                 : "this engine is not shaped (FLUYT_ENGINE_SHAPE is 0)";
+    } else {
+      want = 0;
+      why = "a Fluyt panel is this engine's sound, and that row is not part of it";
+    }
+    if (on != (uint32_t)want) {
+      printf("FAIL: %s (%s) is %s the panel, but %s\n", FLAGROW[i].name,
+             track_desc(&trk[0], FLAGROW[i].id)->label, on ? "on" : "not on", why);
+      bad++;
+    }
   }
 
   for (i = 0; i < NROWS; i++) {

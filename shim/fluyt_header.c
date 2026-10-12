@@ -14,7 +14,9 @@
  *
  * Every row is k_unit_param_type_strings, so the panel shows Felucca's own word for the value
  * ("SINE", "-12.0 dB", "2.00 s") rather than a number the device would have to be told the unit of.
- * The two rows that are not are the ones the device draws better itself: a percentage, and a switch.
+ * The two rows that are not are the ones the device draws better itself - a percentage, and a switch
+ * - and both of those were mix rows, which a Fluyt panel does not have (see README.md); the mapping
+ * below is what a row would say if one ever came back.
  *
  * Nothing of Felucca is here, and nothing of the engine: this file is the same for all nine units,
  * and the four things that differ come from config.mk - the name, the id, how many presets the

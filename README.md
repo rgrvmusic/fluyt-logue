@@ -83,11 +83,12 @@ Two programs are built per unit, out of that unit's own sources and its own `con
 
 - **`check_rows`** holds the panel to Felucca's own parameter descriptors - every row's label, range
   and default, the row as the unit header declares it to the device, no parameter on the panel twice,
-  the envelope first - and moves every row at its lowest, its default and its highest value, checking
-  the parameter Felucca's engine holds and the text the device is shown after each. It prints the
-  panel the way the device will show it, with Felucca's own formatting of each row at its lowest, its
-  default and its highest value. This is the quickest way to see that a unit is the engine it claims
-  to be.
+  the envelope first, and no row this engine has nothing behind (a filter row on a unit whose engine
+  renders no filter, a row the panel is meant to leave off) - and moves every row at its lowest, its
+  default and its highest value, checking the parameter Felucca's engine holds and the text the
+  device is shown after each. It prints the panel the way the device will show it, with Felucca's own
+  formatting of each row at its lowest, its default and its highest value. This is the quickest way to
+  see that a unit is the engine it claims to be.
 - **`hostsim`** is a drumlogue that is a host program: it loads every preset, plays a note the way
   the sequencer does (a gate on the engine's own note), at block sizes the runtime may ask for
   (including ones that are not a multiple of Felucca's 32-sample control block), and reports the peak
@@ -104,26 +105,35 @@ arithmetic is checked rather than trusted.
 #### The panel
 
 A drumlogue unit declares at most 24 parameters, and the device shows them four to a page. Fluyt's
-panel is envelope-first and each parameter appears once:
+panel is this engine's own sound: the envelope first, then the engine, then the voice mode and the
+LFO.
 
 | Page | Rows |
 | --- | --- |
 | 1 | ATK · DEC · SUS · REL |
-| 2-3 | the engine's own four HOME knobs, then its eight `P_E0..P_E7` |
-| 4 | the filter and pitch envelope amounts, then the LFO's rate and shape |
-| 5 | LVL · PAN · VOICE · GLIDE |
-| 6 | MUTE, then the LFO's shape, phase, fade and its destinations |
+| 2-3 | the engine's own four HOME knobs, then its remaining `P_E0..P_E7` |
+| 4 | the envelope's filter amount (FLT), the voice mode (VCE), the LFO's rate and wave |
+| 5 | where the LFO goes: PIT · FLT · SHP · AMP |
 
-The order is a walk with two rules - the envelope first, and a parameter that has been shown is not
-shown again - so a knob that is already a row (ANALOG's cutoff, say) closes the panel up rather than
-appearing twice, and the rows that fall off the end are the ones a player is least likely to miss.
-The 24th row of ANALOG is therefore FADE, where a unit with fewer engine knobs would still be
-showing an LFO destination.
+20 rows for ANALOG, TRIO, NOISE, FORMANT and FM6; 19 for PHASE and LOFI; 17 for WHEEL and DRUM. The
+count follows the engine: PHASE's eighth parameter is one of Felucca's inert rows (a label of `-` and
+no range), WHEEL and DRUM render no filter, so they have no FLT row and no LFO filter amount, LOFI is
+not shaped, so it has no SHP amount, and where one of the engine's four HOME knobs is a parameter the
+walk would show again (ANALOG's cutoff, say) the panel closes up rather than showing it twice.
+
+What is not on the panel is the FM-1 around the engine. Its level and pan are the drumlogue's own -
+the unit renders into its part's volume and pan - and its mute is the sequencer's, so those three
+were three of the 24 slots spent on knobs the device already has; glide, the LFO's phase and fade, and
+the envelope's pitch and shape amounts lost their slot to the LFO's four destinations. That is the
+whole rule: a row is a knob this engine's sound has room for.
 
 Almost every row is `k_unit_param_type_strings`, which means the device asks the unit how to write
 the value and gets **Felucca's own formatting** - `SAW`, `-4.0dB`, `2.1ms`, `+98%` - rather than a
-number whose unit the device would have to guess. The two exceptions are the switch (MUTE) and a
-parameter that is a true percentage.
+number whose unit the device would have to guess. Every row of all nine panels is in fact, because
+the rows the device draws better itself (a true percentage, a switch) were the mix rows this panel
+leaves off; the generator still knows how to ask for one. The labels are Felucca's too, which is why
+the LFO page reads `PIT` and `FLT` and the page before it reads `FLT` and `VCE`: the FM-1 shows a
+group at a time, and so does the device.
 
 Every row's range, default and label comes from Felucca's `params.c` (`TP[]`) and the engine's own
 `edit[]` table - the very tables the FM-1's display reads - so there is nothing to invent and nothing
@@ -150,7 +160,7 @@ shim/
   fluyt_engine.c             the unit's single translation unit: Felucca's files, compiled as they
                              are, plus the bridge (events, the panel, the mix, the float output)
   fluyt_unit.c               the drumlogue's unit_* entry points, one line each over the bridge
-  fluyt_header.c             the unit header (name, id, the 24 rows), built from rows.def
+  fluyt_header.c             the unit header (name, id, the panel's rows), built from rows.def
   fluyt_engines.c            the engine table Felucca's engines.c would have supplied
   fluyt_preset.c             loading a preset, and the state a track starts in (from ui.c)
   fluyt_queue.h              the one-producer ring between the control thread and the audio thread

@@ -10,14 +10,19 @@
  * engine's edit[] - the very tables the FM-1's own display reads. tools/check_rows.c (built from
  * the same sources) reads a rows.def back and holds it to those tables.
  *
- * The order is Fluyt's, not Felucca's, and it is a walk with a rule: a parameter that has already
- * appeared is not shown again. So a unit's panel is the envelope first (always rows 1-4), then the
- * engine's own four HOME knobs, then its eight parameters, then the filter and pitch envelope
- * destinations, the LFO and the mix. Where a knob is a row already taken (ANALOG's cutoff, say),
- * the panel closes up rather than showing it twice.
+ * The panel is this engine's own sound, and nothing else: the envelope first (always rows 1-4), then
+ * the engine's four HOME knobs and its eight parameters, then the envelope's filter amount, the
+ * voice mode and the LFO (its rate, its wave, and where it goes: pitch, the filter, the shape, the
+ * amp). A parameter is shown once - where a knob already is that row (ANALOG's cutoff, say) the
+ * panel closes up rather than showing it twice - and a row this engine has nothing behind is not
+ * shown at all: WHEEL and DRUM render no filter, so they have no filter row and no LFO filter
+ * amount, and LOFI, WHEEL and DRUM are not shaped, so they have no LFO shape amount.
  *
- * A drumlogue unit declares at most 24 rows (UNIT_MAX_PARAM_COUNT), so the walk ends with what a
- * player is least likely to miss: the LFO's own destinations, and the LFO's shape, phase and fade.
+ * What is not here is the FM-1's track around the engine - level, pan, mute, glide, the LFO's phase
+ * and fade, the envelope's shape amount. Level and pan are the drumlogue's own (the unit renders
+ * through its part's volume and pan) and mute is the sequencer's, so those three were three of the
+ * 24 slots spent on knobs the device already has; the rest lost their slot to the LFO, which a
+ * player reaches for far more often than a fade time.
  *
  * Build (host, no container needed):
  *   cc -O1 -o build/gen_rows tools/gen_rows.c -Ishim/gen -Ifelucca/firmware/src -DFLUYT_ALL_ENGINES
@@ -55,23 +60,31 @@
 
 #include "fluyt_rows.h"          /* FLUYT_T_*: what a row is told to be */
 
-#define W(id) {#id, id}          /* a walk entry: the parameter, and its own name as C source */
+/* a walk entry: the parameter, its own name as C source, and what the engine has to have for the row
+ * to be worth a slot. WC/WS are the rows an engine without that part of itself does not get: DRUM
+ * and WHEEL render no filter, LOFI, WHEEL and DRUM no shape (that is, their code never reads
+ * m->cutoff / m->shape - see the flags in UNITS[]). */
+#define W(id) {#id, id, W_ANY}
+#define WC(id) {#id, id, W_CUT}
+#define WS(id) {#id, id, W_SHP}
+enum { W_ANY, W_CUT, W_SHP };    /* what a row needs: nothing, a filter, a shape */
 
-/* one row: the parameter it moves, and that parameter's name as C source ("P_E4") */
+/* one row: the parameter it moves, that parameter's name as C source ("P_E4"), and its condition */
 struct row {
   const char *name;
   uint8_t id;
+  uint8_t needs;
 };
 
-/* the walk; the engine's four knobs go in at WALK_KNOB_AT, because which parameters they are is the
- * engine's own business */
+/* the panel, in the order the device shows it; the engine's four knobs go in at WALK_KNOB_AT,
+ * because which parameters they are is the engine's own business */
 static const struct row WALK[] = {
     W(P_ATK), W(P_DEC), W(P_SUS), W(P_REL),
     W(P_E0), W(P_E1), W(P_E2), W(P_E3), W(P_E4), W(P_E5), W(P_E6), W(P_E7),
-    W(P_ED_FLT), W(P_ED_PIT), W(P_LRATE), W(P_LWAVE),
-    W(P_LEVEL), W(P_PAN), W(P_VOICE), W(P_GLIDE),
-    W(P_MUTE),
-    W(P_ED_SHP), W(P_LPHASE), W(P_LFADE), W(P_LD_FLT), W(P_LD_PIT), W(P_LD_SHP), W(P_LD_AMP),
+    WC(P_ED_FLT),
+    W(P_VOICE),
+    W(P_LRATE), W(P_LWAVE),
+    W(P_LD_PIT), WC(P_LD_FLT), WS(P_LD_SHP), W(P_LD_AMP),
 };
 #define WALK_KNOB_AT 4u          /* after the envelope, before the engine's parameters */
 #define NWALK (sizeof(WALK) / sizeof(WALK[0]))
@@ -80,6 +93,7 @@ static const struct row WALK[] = {
 static struct row rows[ROW_MAX];
 static uint32_t nrows;
 static const engine_t *eng;      /* the unit's engine (row_desc) */
+static uint8_t needs[3];         /* W_ANY/W_CUT/W_SHP: what this engine has, from UNITS[] */
 static char knob_name[4][12];    /* for a knob whose parameter the walk does not name (unlikely) */
 
 /* a parameter's own name, as the walk has it */
@@ -106,11 +120,13 @@ static int seen(uint32_t id)
  * where a descriptor's may depend on the mode the engine is in */
 static const param_desc_t *row_desc(const engine_t *e, uint32_t id);
 
-/* one row, unless the walk has already taken that parameter, the parameter is one of Felucca's
- * inert ones (a label of "-" and no range at all: PHASE leaves P_E7 so), or the panel is full */
+/* one row, unless the walk has already taken that parameter, this engine has nothing behind it (a
+ * row whose condition the engine does not meet), the parameter is one of Felucca's inert ones (a
+ * label of "-" and no range at all: PHASE leaves P_E7 so), or the panel is full */
 static void add(const struct row *r)
 {
-  if (nrows >= ROW_MAX || seen(r->id) || row_desc(eng, r->id)->min == row_desc(eng, r->id)->max)
+  if (nrows >= ROW_MAX || seen(r->id) || !needs[r->needs] ||
+      row_desc(eng, r->id)->min == row_desc(eng, r->id)->max)
     return;
   rows[nrows++] = *r;
 }
@@ -123,8 +139,9 @@ static const param_desc_t *row_desc(const engine_t *e, uint32_t id)
 }
 
 /* what the drumlogue is told the row is: almost every row of Felucca's is an index into one of its
- * tables, and the device is shown Felucca's own formatting of it; a switch and a true percentage
- * are the exceptions */
+ * tables, and the device is shown Felucca's own formatting of it. A switch and a true percentage
+ * would be the exceptions - a row where the number is the display - and no row of any Fluyt panel is
+ * either today (both of those were the mix rows, which the panel leaves off). */
 static const char *type_name(const param_desc_t *d)
 {
   if (d->names == N_ONOFF)                       /* the 0/1 switches: MUTE, ARP HOLD */
@@ -135,26 +152,33 @@ static const char *type_name(const param_desc_t *d)
 }
 
 /* Fluyt's nine units: the name this repository calls each engine, the Felucca source and symbol it
- * is, and the note a sequencer step plays (the DRUM kit is General MIDI numbered, so its step is the
- * kick; every other engine is melodic and plays middle C, as bg1-va_drumlogue does). The engines
- * themselves are FLUYT_FAMILY[]'s (shim/fluyt_engines.c), in the same order - checked below, so the
- * numbering the units are built with cannot come apart from the numbering they render with. */
+ * is, the note a sequencer step plays (the DRUM kit is General MIDI numbered, so its step is the
+ * kick; every other engine is melodic and plays middle C, as bg1-va_drumlogue does), and the two
+ * parts of itself an engine may not have: a cutoff it never reads (m->cutoff, so no filter row and
+ * no LFO filter amount) and a shape (m->shape, so no LFO shape amount). Both are read out of the
+ * engine's own code - `grep -c 'm->cutoff' felucca/firmware/src/eng_*.c`, 0 for eng_wheel.c and
+ * eng_drum.c, and eng_lofi.c reads a cutoff but no shape - and the generator writes them into
+ * config.mk as FLUYT_ENGINE_CUTOFF/FLUYT_ENGINE_SHAPE, which tools/check_rows.c holds the panel to.
+ * The engines themselves are FLUYT_FAMILY[]'s (shim/fluyt_engines.c), in the same order - checked
+ * below, so the numbering the units are built with cannot come apart from the numbering they render
+ * with. */
 static const struct unit {
   const char *name;
   const char *src;
   const char *sym;
   const engine_t *eng;
   uint8_t gate;
+  uint8_t cutoff, shape;
 } UNITS[] = {
-    {"ANALOG", "eng_analog.c", "ENG_ANALOG", &ENG_ANALOG, 60},
-    {"TRIO", "eng_trio.c", "ENG_TRIO", &ENG_TRIO, 60},
-    {"PHASE", "eng_phase.c", "ENG_PHASE", &ENG_PHASE, 60},
-    {"LOFI", "eng_lofi.c", "ENG_LOFI", &ENG_LOFI, 60},
-    {"WHEEL", "eng_wheel.c", "ENG_WHEEL", &ENG_WHEEL, 60},
-    {"NOISE", "eng_noise.c", "ENG_NOISE", &ENG_NOISE, 60},
-    {"FORMANT", "eng_formant.c", "ENG_FORMANT", &ENG_FORMANT, 60},
-    {"DRUM", "eng_drum.c", "ENG_DRUM", &ENG_DRUM, 36},
-    {"FM6", "eng_fm6.c", "ENG_FM6", &ENG_FM6, 60},
+    {"ANALOG", "eng_analog.c", "ENG_ANALOG", &ENG_ANALOG, 60, 1, 1},
+    {"TRIO", "eng_trio.c", "ENG_TRIO", &ENG_TRIO, 60, 1, 1},
+    {"PHASE", "eng_phase.c", "ENG_PHASE", &ENG_PHASE, 60, 1, 1},
+    {"LOFI", "eng_lofi.c", "ENG_LOFI", &ENG_LOFI, 60, 1, 0},
+    {"WHEEL", "eng_wheel.c", "ENG_WHEEL", &ENG_WHEEL, 60, 0, 0},
+    {"NOISE", "eng_noise.c", "ENG_NOISE", &ENG_NOISE, 60, 1, 1},
+    {"FORMANT", "eng_formant.c", "ENG_FORMANT", &ENG_FORMANT, 60, 1, 1},
+    {"DRUM", "eng_drum.c", "ENG_DRUM", &ENG_DRUM, 36, 0, 0},
+    {"FM6", "eng_fm6.c", "ENG_FM6", &ENG_FM6, 60, 1, 1},
 };
 #define NUNITS (sizeof(UNITS) / sizeof(UNITS[0]))
 
@@ -235,9 +259,15 @@ static int write_config(const char *dir, const struct unit *u, uint32_t which, u
           "UDEFS += -DFLUYT_UNIT_NAME=\\\"FLUYT\\ %s\\\"\n"
           "UDEFS += -DFLUYT_UNIT_ID=0x%08XU\n"
           "UDEFS += -DFLUYT_UNIT_PRESETS=%u\n"
-          "UDEFS += -DFLUYT_GATE_NOTE=%u\n",
+          "UDEFS += -DFLUYT_GATE_NOTE=%u\n"
+          "# what this engine has of itself: it reads m->cutoff / m->shape (see UNITS[] in the\n"
+          "# generator). tools/check_rows.c holds the panel to these two - a filter row or an LFO\n"
+          "# filter amount where there is no filter is a slot spent on nothing.\n"
+          "UDEFS += -DFLUYT_ENGINE_CUTOFF=%u\n"
+          "UDEFS += -DFLUYT_ENGINE_SHAPE=%u\n",
           u->name, u->src, u->sym, (unsigned)felucca, d, proj, u->src, u->sym, (unsigned)felucca,
-          u->name, 0x464C5900u | (unsigned)(which + 1u), (unsigned)npresets, (unsigned)u->gate);
+          u->name, 0x464C5900u | (unsigned)(which + 1u), (unsigned)npresets, (unsigned)u->gate,
+          (unsigned)u->cutoff, (unsigned)u->shape);
   fclose(f);
   return 0;
 }
@@ -263,6 +293,10 @@ int main(int argc, char **argv)
   }
   u = &UNITS[which];
   eng = u->eng;
+  needs[W_ANY] = 1;                                 /* every engine renders an envelope, a voice and
+                                                     * an LFO */
+  needs[W_CUT] = u->cutoff;
+  needs[W_SHP] = u->shape;
 
   for (i = 0; i < WALK_KNOB_AT; i++)
     add(&WALK[i]);

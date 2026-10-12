@@ -14,7 +14,9 @@
 
 /* the track's settings, not the sound's (ui.c:655): what a sound load leaves alone - the mix, the
  * arpeggiator, the scale and key map, the pattern's parameters, the SLICER insert and the chord
- * keys. Only LVL, PAN and MUTE of these are rows of a unit; the rest is kept for parity. */
+ * keys. None of them is a row of a unit: a panel is the engine's sound, and the mix is the
+ * drumlogue's own (see README.md). They are kept as Felucca has them, which is what keeps a sound
+ * the same sound either side of the FM-1. */
 static int fluyt_param_kept(uint32_t i)
 {
   return i == P_LEVEL || i == P_PAN || i == P_MUTE || (i >= P_AMODE && i <= P_SGATE) ||

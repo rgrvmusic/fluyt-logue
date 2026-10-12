@@ -46,3 +46,8 @@ UDEFS += -DFLUYT_UNIT_NAME=\"FLUYT\ DRUM\"
 UDEFS += -DFLUYT_UNIT_ID=0x464C5908U
 UDEFS += -DFLUYT_UNIT_PRESETS=1
 UDEFS += -DFLUYT_GATE_NOTE=36
+# what this engine has of itself: it reads m->cutoff / m->shape (see UNITS[] in the
+# generator). tools/check_rows.c holds the panel to these two - a filter row or an LFO
+# filter amount where there is no filter is a slot spent on nothing.
+UDEFS += -DFLUYT_ENGINE_CUTOFF=0
+UDEFS += -DFLUYT_ENGINE_SHAPE=0
