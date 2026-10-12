@@ -3,6 +3,7 @@
 */build/
 */.dep/
 *.drmlgunit
+*.mk2unit
 *.elf
 *.map
 *.hex

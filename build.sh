@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
-# Fluyt - Felucca's engines as drumlogue units.
+# Fluyt - Felucca's engines as logue units.
 # Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
 # This build script follows the one written for Regroove | RGRV's own logue units (rfx/logue,
 # regroovelizer) and is licensed permissively, like it: MIT, see docs/LICENSING.md and LICENSES/MIT.txt.

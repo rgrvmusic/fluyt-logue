@@ -1,25 +1,31 @@
 Fluyt
 =====
 
-### Felucca's engines, as drumlogue units
+### Felucca's engines, as logue units
 
 [Felucca](https://github.com/hugelton/Felucca) is an open firmware for the M-VAVE FM-1, a small
 synthesizer built around a JieLi pi32v2 DSP. Its sound engines are plain integer C, self-contained,
 and each one is a different way of 'whistling'. Fluyt takes nine of them and ships each as its own
-[KORG drumlogue](https://www.korg.com/us/products/drums/drumlogue/) unit.
+unit: one for the [KORG drumlogue](https://www.korg.com/us/products/drums/drumlogue/), and one for
+the [KORG microKORG2](https://www.korg.com/us/products/synthesizers/microkorg2/) as well.
 
 One engine, one unit, one file to install. Fluyt ANALOG is Felucca's ANALOG engine on the
 drumlogue; Fluyt FM6 is its six-operator FM; and so on for the nine. Each is played on the panel,
-from the keyboard, or from the drumlogue's sequencer.
+from the keyboard, or from the drumlogue's sequencer; on the microKORG2 the same nine are
+oscillators inside the instrument's own voice, played from its keyboard and shaped by its EG, its
+filter and its amp.
 
 - Felucca is a git submodule here and is **never modified**: everything around it is Fluyt's.
 - The panel is **generated from Felucca's own parameter tables**, so a label, range or default
   cannot drift from the engine it belongs to.
 - The numbers are Felucca's own: the same envelope tables, the same LFO, the same fixed-point DSP,
-  rendered at the drumlogue's 48 kHz.
+  rendered at 48 kHz, the rate both of these instruments run at.
 
 
 #### The units
+
+On the drumlogue, one unit per engine, up to 20 rows over five pages (see [The drumlogue
+panel](#the-drumlogue-panel)):
 
 | Unit | Felucca engine | Presets | What it is |
 | --- | --- | --- | --- |
@@ -33,12 +39,32 @@ from the keyboard, or from the drumlogue's sequencer.
 | `fluyt_drum_drumlogue` | DRUM | 1 | The drum kit, General MIDI numbered |
 | `fluyt_fm6_drumlogue` | FM6 | 8 | Six-operator FM (an msfa port, Apache-2.0) |
 
+And on the microKORG2, the same nine as osc modules, 13 rows over four pages (see [The microKORG2
+panel](#the-microkorg2-panel)):
+
+| Unit | Shown as | Felucca engine | Presets | What it is |
+| --- | --- | --- | --- | --- |
+| `fluyt_analog_microkorg2` | `F-ANALOG` | ANALOG | 12 | Two-oscillator virtual analog with a resonant filter |
+| `fluyt_trio_microkorg2` | `F-TRIO` | TRIO | 5 | Three-oscillator (paraphonic) analog |
+| `fluyt_phase_microkorg2` | `F-PHASE` | PHASE | 6 | Phase-distortion oscillator |
+| `fluyt_lofi_microkorg2` | `F-LOFI` | LOFI | 5 | Aliased, low-bit pulse |
+| `fluyt_wheel_microkorg2` | `F-WHEEL` | WHEEL | 5 | Tonewheel organ with a rotor |
+| `fluyt_noise_microkorg2` | `F-NOISE` | NOISE | 4 | Filtered noise and sample-rate crush |
+| `fluyt_formant_microkorg2` | `F-FORMNT` | FORMANT | 4 | Formant (vocal) synthesis |
+| `fluyt_drum_microkorg2` | `F-DRUM` | DRUM | 1 | The drum kit, General MIDI numbered |
+| `fluyt_fm6_microkorg2` | `F-FM6` | FM6 | 8 | Six-operator FM (an msfa port, Apache-2.0) |
+
+The instrument shows eight characters at most, which is why `FLUYT ANALOG` is `F-ANALOG` there; the
+drumlogue has room for the long name and uses it. A microKORG2 unit sits inside a voice that
+already has an EG, a filter and an amp, so it is an oscillator to the instrument rather than a
+synth: the platform's `k_unit_module_osc` target, and pages of four rows like the drumlogue's.
+
 Not here: Felucca's sample-based engines (SAMPLE, GRAIN, SLICE) - they need the FM-1's sample
 material - and PHYS, which is a bigger port.
 
 The unit ids are `0x464C5901`..`0x464C5909` ("FLY", 1-9) under the developer id `0x72677276` - "rgrv",
-as used across Regroove | RGRV units - and the device shows them as FLUYT ANALOG, FLUYT TRIO, and so
-on.
+as used across Regroove | RGRV units - on both platforms, and the drumlogue shows them as FLUYT
+ANALOG, FLUYT TRIO, and so on.
 
 
 #### Building
@@ -69,6 +95,26 @@ LOGUE_SDK_PATH=/path/to/logue-sdk ./build.sh
 
 Install the files in `bin/` the way any drumlogue unit is installed (the drumlogue's own unit
 loader), then pick the unit on the device.
+
+The microKORG2 units build the same way, in the same container image and out of the same `shim/`,
+the same Felucca and the same 48 kHz tables:
+
+```sh
+./build-microkorg2.sh                    # all nine
+./build-microkorg2.sh fluyt_fm6_microkorg2
+```
+
+`build-microkorg2.sh` is those three steps run against the microKORG2's own environment in the
+image, and takes the same `LOGUE_SDK_PATH`, `DEBUG` and `FORCE_TABLES`. What differs is where the
+SDK's Makefile is run from (the platform's own directory), the panels it asks for (`gen_rows.c`,
+told `microkorg2`), and where the artifacts land: `bin/*.mk2unit`, beside the drumlogue's
+`*.drmlgunit` and never over them. Felucca is mounted read-only throughout, as it is in `build.sh`.
+
+Install those the way any microKORG2 unit is installed: connect the instrument over USB, hold the
+first option button while turning it on to put it in USB mass storage mode, and copy the `.mk2unit`
+into a `SlotN` folder under `Units/Oscs` on the drive it appears as. Then pick the oscillator - it is
+in the list as `F-ANALOG`, `F-TRIO`, and so on. `readelf -x .unit_header bin/fluyt_analog.mk2unit`
+shows what the instrument reads: the name, the osc target, the developer id, and the row count.
 
 
 #### The host checks
@@ -101,10 +147,34 @@ Two programs are built per unit, out of that unit's own sources and its own `con
 Felucca's own build uses neither sanitizers nor `-fwrapv`, so this is the only place its fixed-point
 arithmetic is checked rather than trusted.
 
-Both checks build the units' sources here. The shipped `.drmlgunit` - the file the device loads,
-32-bit ARM - is a different thing to run, and that is what
+The microKORG2 units have their own pair, because their panel is a different panel and their render
+is a different call:
+
+```sh
+tools/hostcheck-microkorg2.sh
+```
+
+- `check_rows_microkorg2` is `check_rows` for the osc panel: the 13 slots, no parameter on the
+  panel twice, no envelope row, the engine's own four HOME knobs first, Felucca's own text at both
+  ends of every row, the declaration the instrument reads counted from zero, and the envelope the
+  bridge holds open - checked for every preset of the engine as well, since a preset carries its own
+  ADSR and the panel cannot reach it to put it back. It prints the panel the way the instrument will
+  show it.
+- `microkorg2sim` is a microKORG2 that is a host program: it renders every case **twice**, once
+  through Felucca's own `track_render` with the drumlogue's block sizes and once through the
+  microKORG2's per-voice call, each voice into its own lane at the stride the runtime's layout uses,
+  and holds the two to each other - the same samples, not similar ones. It is the check that the
+  restated per-voice loop (`shim/fluyt_microkorg2.c` restates voice.c:546-598) is still Felucca's.
+  Around that: every lane written including the silent ones, nothing outside ±1.0, block sizes the
+  runtime may actually ask for (1, 7, 13, 33, 74, 128 frames - it is not obliged to hand whole
+  control ticks), and every preset played.
+
+All of these checks build the units' sources here. The shipped `.drmlgunit` - the file the
+drumlogue loads, 32-bit ARM - is a different thing to run, and that is what
 [docs/reginecheck.md](docs/reginecheck.md) covers: ReGINE, Regroove | RGRV's own logue runtime,
-loads the built file itself and renders it, so the file that reaches the device has run before.
+loads the built file itself and renders it, so the file that reaches the device has run before. It
+is the drumlogue's file: ReGINE's `dlhost` is a drumlogue host, and a microKORG2 `.mk2unit` is a
+different loader's file (see [docs/microkorg2.md](docs/microkorg2.md)).
 
 ```sh
 tools/reginecheck.sh                      # all nine, wherever dlhost runs
@@ -120,7 +190,7 @@ wired to nothing is caught. Two pairs are expected to come back identical and th
 is (`oneshot`), so neither reads the track's ADSR.
 
 
-#### The panel
+#### The drumlogue panel
 
 A drumlogue unit declares at most 24 parameters, and the device shows them four to a page. Fluyt's
 panel is this engine's own sound: the envelope first, then the engine, then the voice mode and the
@@ -170,6 +240,55 @@ descriptor, moving every row at its lowest, its default and its highest value an
 parameter and the text back.
 
 
+#### The microKORG2 panel
+
+A microKORG2 osc module declares at most 13 parameters, and the instrument shows them four to a
+page. It is the same walk, the same generator and the same rule about zero; there is simply less of
+it, because this instrument's voice already has an EG, a filter and an amp around the module:
+
+| Rows | What |
+| --- | --- |
+| 1-8 | the engine: up to eight, its own four HOME knobs where the walk shows them first, then the rest of `P_E0..P_E7` |
+| 9-13 | the LFO: RATE · WAVE · PIT, then the engine's shape amount (SHP) where it has one, then its amplitude amount (AMP) |
+
+13 rows for ANALOG, TRIO, NOISE, FORMANT and FM6 - the engine's eight, then RATE, WAVE, PIT, SHP and
+AMP. 12 for PHASE, LOFI, WHEEL and DRUM, which have one row less of the engine or one destination
+less of the LFO: PHASE's eighth parameter is one of Felucca's inert rows (a label of `-` and no
+range), and LOFI, WHEEL and DRUM have no shape amount to reach (WHEEL and DRUM render no filter
+either, so nothing here reads their cutoff - neither panel has a filter row for them). As on the
+drumlogue, where a HOME knob is a parameter the walk would show again (ANALOG's cutoff, say) the
+panel closes up rather than showing it twice.
+
+What the drumlogue panel has and this one does not:
+
+- **The envelope.** `ATK`, `DEC`, `SUS`, `REL` and the three amounts it feeds (the filter, the
+  pitch, the shape) are gone. The instrument has an EG of its own and that is the envelope this
+  sound should be shaped by, so Felucca's is **held open** instead: attack 0, decay 0, sustain and
+  release full, the three amounts 0 - written at the end of every block's drain, after that block's
+  events. A preset carries its own envelopes and `apply_preset_to` writes them, so it is re-opened
+  after a preset load too: a preset can change everything the panel can show, and nothing else.
+- **The voice mode.** On the drumlogue, `VCE` (POLY/UNISON/MONO) is the unit's own decision, because
+  a drumlogue unit renders its part itself. On the microKORG2 the instrument's allocator plays the
+  voices and hands the module up to eight of them, one per lane - device voice *i* is Felucca's
+  voice *i* of `trk[0]` - so there is nothing left for a row to decide.
+- **The LFO's filter amount (`FLT`).** On the drumlogue the panel is the only thing that can move
+  the cutoff, so the LFO needs a row that reaches it. On the microKORG2 the instrument's own LFO
+  reaches this unit's `CUT` row through the virtual patch, and the one modulation the instrument
+  cannot reach is the engine's internal shape amount - which is why `SHP` stays and `FLT` goes.
+
+Two things stay the same, and are worth saying because they are the ones a port usually breaks:
+level and pan are still the instrument's own (there is no mix row on either panel, and the lane
+holds the voice through Felucca's master chain and nothing of ours), and a row the unit formats
+itself is still declared from zero up - the runtime holds it in a byte on this platform too, so the
+whole lower half of a bipolar row would otherwise read as its maximum.
+
+The instrument's allocator is not the drumlogue's, and two engines have a cap of their own:
+FORMANT's `poly` is 4, and FM6 has six operator sets per part. What the port does about that is let
+the instrument decide and stay correct at the edges: FM6's seventh and eighth voices have no
+operator set and fall silent rather than reading past one, and nothing here reads a voice that was
+never started. [docs/microkorg2.md](docs/microkorg2.md) has the details.
+
+
 #### How it fits together
 
 ```
@@ -179,20 +298,31 @@ shim/
                              are, plus the bridge (events, the panel, the mix, the float output)
   fluyt_unit.c               the drumlogue's unit_* entry points, one line each over the bridge
   fluyt_header.c             the unit header (name, id, the panel's rows), built from rows.def
+  fluyt_microkorg2.c         the microKORG2's render: the per-voice body of Felucca's track_render,
+                             restated once for one voice per lane (it names the voice.c lines)
+  fluyt_microkorg2_unit.c    the osc ABI entry points (the microKORG2's unit_render/note_on/...)
+  fluyt_microkorg2_header.c  the osc unit header: 13 rows, the osc target, the preset count
   fluyt_engines.c            the engine table Felucca's engines.c would have supplied
   fluyt_preset.c             loading a preset, and the state a track starts in (from ui.c)
   fluyt_queue.h              the one-producer ring between the control thread and the audio thread
   fluyt_fmt.h                the four formatters Felucca's libc.c supplies (it is not compiled in)
   gen/                       the 48 kHz tables, generated by build.sh (gitignored)
 fluyt_*_drumlogue/           nine units: the SDK's Makefile, a generated config.mk and rows.def
-tools/gen_rows.c             writes those rows.def/config.mk out of Felucca's descriptors
-tools/check_rows.c           the host check of the panel
-tools/hostsim.c              the host check of the sound
+fluyt_*_microkorg2/          the same nine for the microKORG2 (the SDK's dummy-osc Makefile)
+tools/gen_rows.c             writes those rows.def/config.mk out of Felucca's descriptors, for
+                             either platform (`drumlogue` or `microkorg2`)
+tools/check_rows.c           the host check of the drumlogue panel
+tools/hostsim.c              the host check of the sound (platform-neutral, so it is shared)
 tools/hostcheck.sh           builds and runs both, for all nine
+tools/check_rows_microkorg2.c  the host check of the microKORG2 panel
+tools/microkorg2sim.c        a microKORG2 that is a host program: the osc block against track_render
+tools/hostcheck-microkorg2.sh  builds and runs both, for all nine
 tools/reginecheck.sh         runs the built units through ReGINE's dlhost (ARM)
 build.sh                     tables -> panels -> the container build
+build-microkorg2.sh          the same, against the microKORG2's platform directory
 docs/LICENSING.md            what is whose: Felucca, the SDK, these units
 docs/reginecheck.md          running a built unit on ARM, with ReGINE
+docs/microkorg2.md           the microKORG2 platform: the lanes, the open envelope, the build
 ```
 
 Felucca is one translation unit (`firmware/src/felucca.c` includes its files in order), and so is a
@@ -205,12 +335,19 @@ Notes, rows, presets and bend arrive from the drumlogue's control thread and are
 thread drains the queue at the head of a block and applies them. Felucca's voices are not writable
 from two threads at once, so nothing else crosses.
 
+The microKORG2's side of the bridge is the same queue, the same rows and the same presets; what is
+different is what a render call is. `unit_render` is called once per block over the voices the
+runtime says it covers, and each voice has its own buffer in that block, so the bridge renders one
+voice per lane instead of eight voices into one part - which is the one place the two platforms'
+code differs at all, the eight lines at the end of `shim/fluyt_engine.c` that name the target and
+include the second render instead of the first.
+
 
 #### Fidelity, and the three constants that stay at 44.1 kHz
 
 Everything the generated tables drive is exact at 48 kHz. Three places have a 44.1 kHz constant
-written into their own C, which is Felucca's source and is not ours to change; at the drumlogue's
-48 kHz those places run about 8.8% off:
+written into their own C, which is Felucca's source and is not ours to change; at 48 kHz - the rate
+both of these instruments run at - those places run about 8.8% off:
 
 | Where | What |
 | --- | --- |
@@ -220,16 +357,22 @@ written into their own C, which is Felucca's source and is not ours to change; a
 
 So: FLUYT NOISE's crush is 8.8% coarser or finer than the FM-1's, FLUYT FORMANT's vowels sit about a
 semitone high, and FLUYT FM6's envelopes are 8.8% faster. Everything else - pitch, the ADSR, the
-LFO, cutoff, levels, the drum decays, the soft clip - is the FM-1's, at the drumlogue's rate.
+LFO, cutoff, levels, the drum decays, the soft clip - is the FM-1's, at the rate the instrument
+runs at.
 
 Two smaller notes:
 
-- Master level. The output is Felucca's own mix (its `LEVEL_Q12` table, pan, its DC blocker,
-  limiter and soft clip), converted to the float the drumlogue takes with an exact `1/32768`. A
-  preset peaks around 0.3-0.6 through the panel's default LVL; the soft clip bounds it just under
-  1.0. `tools/hostsim.sh` prints the measured peaks.
+- Master level. A drumlogue unit's output is Felucca's own mix (its `LEVEL_Q12` table, pan, its DC
+  blocker, limiter and soft clip), converted to the float the drumlogue takes with an exact
+  `1/32768`. A preset peaks around 0.3-0.6 through the panel's default LVL; the soft clip bounds it
+  just under 1.0. `tools/hostsim.sh` prints the measured peaks. A microKORG2 unit has no level or
+  pan of its own - the instrument's are the instrument's - so a lane is the voice through the
+  master chain alone, and the four voices of a chord sum where the instrument sums them: peaks of
+  50% a voice land at 200% of one lane, and the instrument's own volume, amp and effects are what
+  the player hears. `tools/microkorg2sim.c` prints both numbers.
 - Pitch bend is ±2 semitones, written into Felucca's own MIDI state the way its `midi_control.c`
-  writes it.
+  writes it. On the microKORG2 the instrument's bend and glide reach the unit as the float pitch of
+  each voice, so that path is the instrument's.
 
 
 #### Why Fluyt?
@@ -245,9 +388,11 @@ Fluyt is **GPL-3.0-only**, like Felucca. Felucca is a submodule, unmodified, at 
 Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments. `fm6_core.c` is a port of
 msfa/Dexed (Apache-2.0). See [docs/LICENSING.md](docs/LICENSING.md).
 
-The build scripts (`build.sh`, `tools/hostcheck.sh`, `tools/reginecheck.sh`) are the exception: they
+The build scripts (`build.sh`, `build-microkorg2.sh`, `tools/hostcheck.sh`,
+`tools/hostcheck-microkorg2.sh`, `tools/reginecheck.sh`) are the exception: they
 come from Regroove | RGRV's own logue build scripts and are **MIT** licensed. Each unit's `Makefile`
-is the logue SDK's, unmodified, and are BSD 3-Clause (KORG INC.). See
+is the logue SDK's, unmodified (the microKORG2 units use the SDK's `dummy-osc` Makefile), and are BSD
+3-Clause (KORG INC.). See
 [docs/LICENSING.md](docs/LICENSING.md) and `LICENSES/`.
 
 

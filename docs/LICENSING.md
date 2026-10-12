@@ -8,13 +8,15 @@ Fluyt - the bridge in `shim/` and the host tools in `tools/` - is **GPL-3.0-only
 2026 Gerard Braad (Regroove | RGRV). The full text is in [LICENSE](../LICENSE). It is GPL-3.0-only
 because it includes Felucca's source (see below), not by preference.
 
-The **build scripts** are the exception: `build.sh`, `tools/hostcheck.sh` and `tools/reginecheck.sh` are the
+The **build scripts** are the exception: `build.sh`, `build-microkorg2.sh`,
+`tools/hostcheck.sh`, `tools/hostcheck-microkorg2.sh` and `tools/reginecheck.sh` are the
 build scripts written for Regroove | RGRV's own logue units, are licensed **MIT**,
 copyright (C) 2026 Gerard Braad (Regroove | RGRV) - see `LICENSES/MIT.txt` at the root of this
 repository.
 
-The host tools are not in that exception: `tools/gen_rows.c`, `tools/check_rows.c` and
-`tools/hostsim.c` include Felucca's source, so they are GPL-3.0-only with the rest.
+The host tools are not in that exception: `tools/gen_rows.c`, `tools/check_rows.c`,
+`tools/check_rows_microkorg2.c`, `tools/hostsim.c` and `tools/microkorg2sim.c` include Felucca's
+source, so they are GPL-3.0-only with the rest.
 
 ## Felucca
 

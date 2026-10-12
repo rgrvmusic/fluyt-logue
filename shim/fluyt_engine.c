@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: GPL-3.0-only
- * Fluyt - Felucca's engines as drumlogue units.
+ * Fluyt - Felucca's engines as logue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
  * see docs/LICENSING.md. */
@@ -434,3 +434,13 @@ const char *fluyt_engine_name(void)
 {
   return ENGINES[eng_idx(trk[0].eng_req)]->name;
 }
+
+#ifdef FLUYT_TARGET_MICROKORG2
+/* The microKORG2's render (shim/fluyt_microkorg2.c). Last, and included rather than compiled beside this
+ * file, because it reaches every static above - Felucca's voices and this bridge's rows, queue and
+ * master chain - the way fluyt_preset.c already does. A drumlogue build never sees it, and a
+ * microKORG2 build carries the drumlogue render's own dead weight with it: both are small, and one
+ * translation unit is what keeps Felucca's statics reachable from either. */
+#include "fluyt_microkorg2.h"
+#include "fluyt_microkorg2.c"
+#endif
