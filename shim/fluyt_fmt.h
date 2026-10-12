@@ -2,7 +2,7 @@
  * Fluyt - Felucca's engines as drumlogue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
- * see LICENSING.md. */
+ * see docs/LICENSING.md. */
 /* The routines of Felucca's own libc.c that the files a unit compiles call by name: the four string
  * helpers params.c's param_format() formats with, and the random source voice.c draws its S&H LFO
  * and its RAND modulation from. Felucca's libc.c itself is not compiled into a unit: the drumlogue

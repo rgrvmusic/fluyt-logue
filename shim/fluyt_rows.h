@@ -2,7 +2,7 @@
  * Fluyt - Felucca's engines as drumlogue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
- * see LICENSING.md. */
+ * see docs/LICENSING.md. */
 /* The panel rows, one FLUYT_ROW per row, expanded twice from a unit's rows.def: by the bridge (for
  * the parameter each row moves) and by the unit's header.c (for what the drumlogue is told about
  * it). rows.def is generated from Felucca's own descriptors by tools/gen_rows.c, so the labels,

@@ -2,7 +2,7 @@
  * Fluyt - Felucca's engines as drumlogue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
- * see LICENSING.md. */
+ * see docs/LICENSING.md. */
 /* What a unit tells the bridge about itself. Every unit's config.mk passes these in UDEFS, one
  * engine each; the host generator (tools/gen_rows.c) passes FLUYT_ALL_ENGINES instead and gets all
  * nine, so one program can read every engine's descriptors. */

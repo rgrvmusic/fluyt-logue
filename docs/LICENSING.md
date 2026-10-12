@@ -5,12 +5,13 @@ Copyright (C) 2026 Gerard Braad - **Regroove | RGRV**.
 ## Fluyt
 
 Fluyt - the bridge in `shim/` and the host tools in `tools/` - is **GPL-3.0-only**, copyright (C)
-2026 Gerard Braad (Regroove | RGRV). The full text is in [LICENSE](LICENSE). It is GPL-3.0-only
+2026 Gerard Braad (Regroove | RGRV). The full text is in [LICENSE](../LICENSE). It is GPL-3.0-only
 because it includes Felucca's source (see below), not by preference.
 
 The **build scripts** are the exception: `build.sh` and `tools/hostcheck.sh` are the shape of the
 build scripts written for Regroove | RGRV's own logue units, are licensed **MIT**,
-copyright (C) 2026 Gerard Braad (Regroove | RGRV) - see `LICENSES/MIT.txt`.
+copyright (C) 2026 Gerard Braad (Regroove | RGRV) - see `LICENSES/MIT.txt` at the root of this
+repository.
 
 The host tools are not in that exception: `tools/gen_rows.c`, `tools/check_rows.c` and
 `tools/hostsim.c` include Felucca's source, so they are GPL-3.0-only with the rest.

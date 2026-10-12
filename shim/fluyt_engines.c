@@ -2,7 +2,7 @@
  * Fluyt - Felucca's engines as drumlogue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
- * see LICENSING.md. */
+ * see docs/LICENSING.md. */
 /* What Felucca's engines.c supplies to voice.c, for a unit that carries one engine instead of
  * fourteen: the engine table, eng_idx(), and the ENG_DRUM symbol voice.c compares against.
  * Felucca's factory patterns and its power-on sounds (engines.c PATTERNS / TRK_DEF) belong to the

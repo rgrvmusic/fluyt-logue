@@ -2,7 +2,7 @@
  * Fluyt - Felucca's engines as drumlogue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
- * see LICENSING.md. */
+ * see docs/LICENSING.md. */
 /* Notes, rows, presets and bend, from the thread that plays them to the thread that renders.
  * The drumlogue calls a unit's note, gate, parameter and preset entry points from its control
  * thread, and unit_render from the audio thread; Felucca's voices, envelopes and preset load are

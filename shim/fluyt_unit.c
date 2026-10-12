@@ -2,7 +2,7 @@
  * Fluyt - Felucca's engines as drumlogue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
- * see LICENSING.md. */
+ * see docs/LICENSING.md. */
 /* The drumlogue's side of a Fluyt unit: the unit_* entry points the runtime calls, each one line
  * over the bridge (shim/fluyt_engine.c). Nothing of Felucca is here, and nothing of the runtime
  * reaches the engine other than through shim/fluyt_engine.h - which is why the bridge can be driven

@@ -2,7 +2,7 @@
  * Fluyt - Felucca's engines as drumlogue units.
  * Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
  * Felucca is Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments (GPL-3.0-only);
- * see LICENSING.md. */
+ * see docs/LICENSING.md. */
 /* Loading a sound, and the state a track starts in. Felucca applies a preset in ui.c
  * (apply_preset_to, ui.c:726) and its engine defaults in set_engine_of (ui.c:774); both are the UI
  * file, which a unit has not, so the two are re-stated here with the same meaning. Everything they
