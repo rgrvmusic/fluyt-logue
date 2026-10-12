@@ -81,7 +81,7 @@ tools/hostcheck.sh
 
 Two programs are built per unit, out of that unit's own sources and its own `config.mk`:
 
-- **`check_rows`** holds the panel to Felucca's own parameter descriptors - every row's label, range
+- `check_rows` holds the panel to Felucca's own parameter descriptors - every row's label, range
   and default, the row as the unit header declares it to the device, no parameter on the panel twice,
   the envelope first, and no row this engine has nothing behind (a filter row on a unit whose engine
   renders no filter, a row the panel is meant to leave off) - and moves every row at its lowest, its
@@ -89,7 +89,7 @@ Two programs are built per unit, out of that unit's own sources and its own `con
   device is shown after each. It prints the panel the way the device will show it, with Felucca's own
   formatting of each row at its lowest, its default and its highest value. This is the quickest way to
   see that a unit is the engine it claims to be.
-- **`hostsim`** is a drumlogue that is a host program: it loads every preset, plays a note the way
+- `hostsim` is a drumlogue that is a host program: it loads every preset, plays a note the way
   the sequencer does (a gate on the engine's own note), at block sizes the runtime may ask for
   (including ones that are not a multiple of Felucca's 32-sample control block), and reports the peak
   and RMS of what came out - so silence, a NaN, or a sample outside ±1.0 is caught before the device
@@ -100,6 +100,24 @@ Two programs are built per unit, out of that unit's own sources and its own `con
 `dnf install libasan libubsan`); where they are not, the checks still run and the script says so.
 Felucca's own build uses neither sanitizers nor `-fwrapv`, so this is the only place its fixed-point
 arithmetic is checked rather than trusted.
+
+Both checks build the units' sources here. The shipped `.drmlgunit` - the file the device loads,
+32-bit ARM - is a different thing to run, and that is what
+[docs/reginecheck.md](docs/reginecheck.md) covers: ReGINE, Regroove | RGRV's own logue runtime,
+loads the built file itself and renders it, so the file that reaches the device has run before.
+
+```sh
+tools/reginecheck.sh                      # all nine, wherever dlhost runs
+tools/reginecheck.sh --host user@board    # ... or on another machine over ssh
+```
+
+That script drives ReGINE's `dlhost`, so it needs a licensed runtime and a 32-bit ARM to run it on
+(see the doc). What it adds over the two host checks is everything on the drumlogue's own side of
+the unit: the header the device reads, the text the unit answers for each row, the sequencer's gate,
+and every row rendered at both ends of its range and compared - so a knob that is on the panel and
+wired to nothing is caught. Two pairs are expected to come back identical and the unit's own
+`config.mk` says which and why: FM6's operator envelopes are its amplitude (`ownenv`) and DRUM's hit
+is (`oneshot`), so neither reads the track's ADSR.
 
 
 #### The panel
@@ -171,7 +189,10 @@ tools/gen_rows.c             writes those rows.def/config.mk out of Felucca's de
 tools/check_rows.c           the host check of the panel
 tools/hostsim.c              the host check of the sound
 tools/hostcheck.sh           builds and runs both, for all nine
+tools/reginecheck.sh         runs the built units through ReGINE's dlhost (ARM)
 build.sh                     tables -> panels -> the container build
+docs/LICENSING.md            what is whose: Felucca, the SDK, these units
+docs/reginecheck.md          running a built unit on ARM, with ReGINE
 ```
 
 Felucca is one translation unit (`firmware/src/felucca.c` includes its files in order), and so is a
@@ -222,12 +243,12 @@ word also means whistle.
 
 Fluyt is **GPL-3.0-only**, like Felucca. Felucca is a submodule, unmodified, at v1.0.2:
 Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments. `fm6_core.c` is a port of
-msfa/Dexed (Apache-2.0). See [LICENSING.md](LICENSING.md).
+msfa/Dexed (Apache-2.0). See [docs/LICENSING.md](docs/LICENSING.md).
 
-The build scripts (`build.sh`, `tools/hostcheck.sh`) are the exception: they come from Regroove |
-RGRV's own logue build scripts and are **MIT** licensed. Each unit's `Makefile` is the
-logue SDK's, unmodified, and are BSD 3-Clause (KORG INC.). See [LICENSING.md](LICENSING.md) and
-`LICENSES/`.
+The build scripts (`build.sh`, `tools/hostcheck.sh`, `tools/reginecheck.sh`) are the exception: they
+come from Regroove | RGRV's own logue build scripts and are **MIT** licensed. Each unit's `Makefile`
+is the logue SDK's, unmodified, and are BSD 3-Clause (KORG INC.). See
+[docs/LICENSING.md](docs/LICENSING.md) and `LICENSES/`.
 
 
 #### Support

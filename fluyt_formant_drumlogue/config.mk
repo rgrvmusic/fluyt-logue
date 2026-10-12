@@ -51,3 +51,12 @@ UDEFS += -DFLUYT_GATE_NOTE=60
 # filter amount where there is no filter is a slot spent on nothing.
 UDEFS += -DFLUYT_ENGINE_CUTOFF=1
 UDEFS += -DFLUYT_ENGINE_SHAPE=1
+# and whether the track's ADSR is this engine's amplitude: FM6's operator envelopes are
+# (ownenv), DRUM's hit is (oneshot), and both hold the ADSR at full. The rows stay on the
+# panel, so tools/reginecheck.sh is what reads these two - a render cannot move them.
+UDEFS += -DFLUYT_ENGINE_OWNENV=0
+UDEFS += -DFLUYT_ENGINE_ONESHOT=0
+# and the row of this engine's own that can mask the envelope's filter amount: LOFI's TONE
+# saturates its own lowpass at its default, so the FLT row only opens anything below it.
+# Empty where the engine has no such row (see UNITS[] in the generator).
+UDEFS += -DFLUYT_ENGINE_TONE=

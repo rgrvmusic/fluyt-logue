@@ -159,6 +159,26 @@ static const char *type_name(const param_desc_t *d)
  * engine's own code - `grep -c 'm->cutoff' felucca/firmware/src/eng_*.c`, 0 for eng_wheel.c and
  * eng_drum.c, and eng_lofi.c reads a cutoff but no shape - and the generator writes them into
  * config.mk as FLUYT_ENGINE_CUTOFF/FLUYT_ENGINE_SHAPE, which tools/check_rows.c holds the panel to.
+ *
+ * The last two are the same kind of fact, about the envelope: whether the track's ADSR is this
+ * engine's amplitude at all. FM6 says no (`eng_fm6.c:367` `.ownenv = 1`, and its own comment: "the
+ * operator envelopes are the voice's amplitude ... the track's ADSR, ENV DEST and the matrix's ENV
+ * do nothing here") and DRUM says no (`eng_drum.c:301` `.oneshot = 1` with `drum_amp`, whose
+ * parameter is named `adsr` and never read: "the hit, not the ADSR, which still runs, held at
+ * full"). Both hold the ADSR at full, so no ATK, DEC, SUS or REL render can move either unit, and
+ * on FM6 there is no envelope for the ENV DEST rows to multiply. The rows are still on those two
+ * panels (Felucca's own editor shows the envelope group for every engine, and this generator's walk
+ * is Felucca's panel), so the flags are what tools/reginecheck.sh reads to tell a row of that kind
+ * from a row that has genuinely come unwired.
+ *
+ * The last one is a row of the engine's own that can mask the envelope's filter amount: LOFI's own
+ * TONE. `eng_lofi.c:128` opens its lowpass with `lpk = 3000 + (p[P_E7] << 8) + (m->cutoff > 0 ?
+ * m->cutoff : 0)`, and `eng_lofi.c:150` clamps that at 32767 - which TONE's own default of 127
+ * already reaches (3000 + 32512), so the filter is wide open before the envelope adds anything and
+ * no amount can open it further. That is why FLUYT LOFI's FLT row moves the sound only with TONE
+ * below about 116, and why tools/reginecheck.sh closes that row for the pair it renders rather than
+ * reporting the envelope's row as unwired. Empty for an engine whose filter has no such row.
+ *
  * The engines themselves are FLUYT_FAMILY[]'s (shim/fluyt_engines.c), in the same order - checked
  * below, so the numbering the units are built with cannot come apart from the numbering they render
  * with. */
@@ -169,16 +189,18 @@ static const struct unit {
   const engine_t *eng;
   uint8_t gate;
   uint8_t cutoff, shape;
+  uint8_t ownenv, oneshot;
+  const char *tone;               /* the engine's own filter-opening row, or "" */
 } UNITS[] = {
-    {"ANALOG", "eng_analog.c", "ENG_ANALOG", &ENG_ANALOG, 60, 1, 1},
-    {"TRIO", "eng_trio.c", "ENG_TRIO", &ENG_TRIO, 60, 1, 1},
-    {"PHASE", "eng_phase.c", "ENG_PHASE", &ENG_PHASE, 60, 1, 1},
-    {"LOFI", "eng_lofi.c", "ENG_LOFI", &ENG_LOFI, 60, 1, 0},
-    {"WHEEL", "eng_wheel.c", "ENG_WHEEL", &ENG_WHEEL, 60, 0, 0},
-    {"NOISE", "eng_noise.c", "ENG_NOISE", &ENG_NOISE, 60, 1, 1},
-    {"FORMANT", "eng_formant.c", "ENG_FORMANT", &ENG_FORMANT, 60, 1, 1},
-    {"DRUM", "eng_drum.c", "ENG_DRUM", &ENG_DRUM, 36, 0, 0},
-    {"FM6", "eng_fm6.c", "ENG_FM6", &ENG_FM6, 60, 1, 1},
+    {"ANALOG", "eng_analog.c", "ENG_ANALOG", &ENG_ANALOG, 60, 1, 1, 0, 0, ""},
+    {"TRIO", "eng_trio.c", "ENG_TRIO", &ENG_TRIO, 60, 1, 1, 0, 0, ""},
+    {"PHASE", "eng_phase.c", "ENG_PHASE", &ENG_PHASE, 60, 1, 1, 0, 0, ""},
+    {"LOFI", "eng_lofi.c", "ENG_LOFI", &ENG_LOFI, 60, 1, 0, 0, 0, "P_E7"},
+    {"WHEEL", "eng_wheel.c", "ENG_WHEEL", &ENG_WHEEL, 60, 0, 0, 0, 0, ""},
+    {"NOISE", "eng_noise.c", "ENG_NOISE", &ENG_NOISE, 60, 1, 1, 0, 0, ""},
+    {"FORMANT", "eng_formant.c", "ENG_FORMANT", &ENG_FORMANT, 60, 1, 1, 0, 0, ""},
+    {"DRUM", "eng_drum.c", "ENG_DRUM", &ENG_DRUM, 36, 0, 0, 0, 1, ""},
+    {"FM6", "eng_fm6.c", "ENG_FM6", &ENG_FM6, 60, 1, 1, 1, 0, ""},
 };
 #define NUNITS (sizeof(UNITS) / sizeof(UNITS[0]))
 
@@ -264,10 +286,20 @@ static int write_config(const char *dir, const struct unit *u, uint32_t which, u
           "# generator). tools/check_rows.c holds the panel to these two - a filter row or an LFO\n"
           "# filter amount where there is no filter is a slot spent on nothing.\n"
           "UDEFS += -DFLUYT_ENGINE_CUTOFF=%u\n"
-          "UDEFS += -DFLUYT_ENGINE_SHAPE=%u\n",
+          "UDEFS += -DFLUYT_ENGINE_SHAPE=%u\n"
+          "# and whether the track's ADSR is this engine's amplitude: FM6's operator envelopes are\n"
+          "# (ownenv), DRUM's hit is (oneshot), and both hold the ADSR at full. The rows stay on the\n"
+          "# panel, so tools/reginecheck.sh is what reads these two - a render cannot move them.\n"
+          "UDEFS += -DFLUYT_ENGINE_OWNENV=%u\n"
+          "UDEFS += -DFLUYT_ENGINE_ONESHOT=%u\n"
+          "# and the row of this engine's own that can mask the envelope's filter amount: LOFI's TONE\n"
+          "# saturates its own lowpass at its default, so the FLT row only opens anything below it.\n"
+          "# Empty where the engine has no such row (see UNITS[] in the generator).\n"
+          "UDEFS += -DFLUYT_ENGINE_TONE=%s\n",
           u->name, u->src, u->sym, (unsigned)felucca, d, proj, u->src, u->sym, (unsigned)felucca,
           u->name, 0x464C5900u | (unsigned)(which + 1u), (unsigned)npresets, (unsigned)u->gate,
-          (unsigned)u->cutoff, (unsigned)u->shape);
+          (unsigned)u->cutoff, (unsigned)u->shape, (unsigned)u->ownenv, (unsigned)u->oneshot,
+          u->tone);
   fclose(f);
   return 0;
 }

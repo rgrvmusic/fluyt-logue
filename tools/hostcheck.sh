@@ -3,7 +3,8 @@
 # Fluyt - Felucca's engines as drumlogue units.
 # Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
 # Another build script in the shape of the ones written for Regroove | RGRV's own logue units; see
-# LICENSING.md. What it builds - and the tools it builds - include Felucca, which is GPL-3.0-only:
+# docs/LICENSING.md. What it builds - and the tools it builds - include Felucca, which is
+# GPL-3.0-only:
 # Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments.
 #
 # The host checks, for all nine units: no container, no device, no cross compiler.

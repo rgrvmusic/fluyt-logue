@@ -12,6 +12,7 @@
 
 # The host tools and their output (build.sh, tools/hostcheck.sh)
 /build/
+/out/
 
 # Felucca's tables, regenerated for the drumlogue's 48 kHz by build.sh. Not checked in: they are
 # 500 KB of a generator's output, they are only correct for one rate, and build.sh says which.
