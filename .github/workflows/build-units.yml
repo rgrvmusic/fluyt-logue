@@ -1,4 +1,4 @@
-name: Build drumlogue units
+name: Build units
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-units:
-    name: Build units
+    name: Build units (drumlogue)
     runs-on: ubuntu-latest
 
     steps:
@@ -38,6 +38,7 @@ jobs:
       # owner is the uid that invoked podman, which the container sees as uid 0, so the remap is
       # skipped. The environment then aborts before it puts the cross toolchain on PATH, and the
       # build reads as "Could not create env. backup directory" plus "make: gcc: Command not found".
+      # The microKORG2 job below needs the same, for the same reason.
       - name: Make the platform directory writable by the container
         run: chmod 777 $HOME/Projects/logue/logue-sdk/platform
 
@@ -48,5 +49,44 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: fluyt-drumlogue-units
+          path: bin/
+          retention-days: 7
+
+  build-units-microkorg2:
+    name: Build units (microKORG2)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Check out Felucca (the submodule, at its pinned tag)
+        run: git submodule update --init --depth 1
+
+      - name: Install containers tools
+        uses: gbraad-actions/setup-container-tools@v1
+
+      - name: Check out the logue SDK
+        run: |
+          mkdir -p $HOME/Projects/logue
+          git clone --depth 1 https://github.com/korginc/logue-sdk.git $HOME/Projects/logue/logue-sdk
+
+      # see the drumlogue job above: the same platform directory is the build user's HOME inside the
+      # image, and a fresh clone is not writable by the user the image remaps onto
+      - name: Make the platform directory writable by the container
+        run: chmod 777 $HOME/Projects/logue/logue-sdk/platform
+
+      # a second job rather than a second script: the two platforms build in the same image, from the
+      # same shim and the same Felucca, and the only thing they do not share is which platform
+      # directory the SDK's Makefile is run from (build-microkorg2.sh says which, and installs the
+      # .mk2unit into bin/ beside the drumlogue units - the artifact below is what keeps the two
+      # downloads apart).
+      - name: Build the microKORG2 units
+        run: ./build-microkorg2.sh
+
+      - name: Upload Artifact - microKORG2 units
+        uses: actions/upload-artifact@v4
+        with:
+          name: fluyt-microkorg2-units
           path: bin/
           retention-days: 7

@@ -1,6 +1,6 @@
 #!/bin/bash
 # SPDX-License-Identifier: MIT
-# Fluyt - Felucca's engines as drumlogue units.
+# Fluyt - Felucca's engines as logue units.
 # Copyright (C) 2026 Gerard Braad (Regroove | RGRV).
 # Another build script in the shape of the ones written for Regroove | RGRV's own logue units; see
 # docs/LICENSING.md. What it runs - the units in bin/, which carry Felucca - is GPL-3.0-only:
