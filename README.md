@@ -378,8 +378,8 @@ Two smaller notes:
 #### Why Fluyt?
 
 The name is symbolic, as fluyt is a kind of Dutch vessel, mostly used for trade during the 16th
-century. A famous fluyt vessel, Duyfken discovered Australia, ... the undiscovered country. But the
-word also means whistle. 
+century. Just like in the old days, I hope this 'trading' will happen between the communities. And,
+the word also means whistle.
 
 
 #### Licence
